@@ -3,6 +3,7 @@ import psycopg2
 import os
 from supabase import create_client, Client
 from werkzeug.utils import secure_filename
+import urllib.parse as urlparse
 
 app = Flask(__name__)
 
@@ -12,15 +13,27 @@ SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # ✅ PostgreSQL Database Connection 
-DATABASE_URL = "postgresql://postgres:ilymaloni321@db.mlylhrqvkbozngbpxrie.supabase.co:5432/postgres?sslmode=require"
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 def get_db_connection():
     try:
-        return psycopg2.connect(DATABASE_URL)
+        if not DATABASE_URL:
+            raise Exception("❌ DATABASE_URL is not set")
+
+        # ✅ Parse DB URL and extract connection parameters
+        url = urlparse.urlparse(DATABASE_URL)
+        conn = psycopg2.connect(
+            dbname=url.path[1:],
+            user=url.username,
+            password=url.password,
+            host=url.hostname,
+            port=url.port,
+            sslmode="require"  # ✅ Enforce SSL
+        )
+        return conn
     except Exception as e:
         print("❌ Database connection error:", e)
         return None
-
 
 @app.route('/getMusic', methods=['GET'])
 def get_music():
